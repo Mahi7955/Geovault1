@@ -90,8 +90,8 @@ const ViewSecret = () => {
         setAccessStatus(existingRequest.status as any);
         
         if (existingRequest.status === "approved") {
-          // Check whitelist
-          const { data: whitelist } = await supabase
+          // Check whitelist - must have remaining views to access
+          const { data: whitelist, error: whitelistError } = await supabase
             .from("whitelists")
             .select("remaining_views")
             .eq("secret_id", secretId)
@@ -99,9 +99,13 @@ const ViewSecret = () => {
             .gt("remaining_views", 0)
             .maybeSingle();
 
-          if (whitelist) {
+          if (!whitelistError && whitelist && whitelist.remaining_views > 0) {
             await loadSecret();
+          } else {
+            toast.error("Access has expired or is no longer available");
           }
+        } else if (existingRequest.status === "rejected") {
+          toast.error("Your access request was rejected");
         }
       }
     } catch (error: any) {

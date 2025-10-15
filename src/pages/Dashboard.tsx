@@ -61,21 +61,27 @@ const Dashboard = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [secretsRes, requestsRes] = await Promise.all([
-        supabase.from("secrets").select("*").order("created_at", { ascending: false }),
-        supabase
-          .from("access_requests")
-          .select("*, secrets(title, max_views)")
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-      ]);
+      // Load user's secrets
+      const { data: secretsData, error: secretsError } = await supabase
+        .from("secrets")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-      if (secretsRes.error) throw secretsRes.error;
-      if (requestsRes.error) throw requestsRes.error;
+      if (secretsError) throw secretsError;
 
-      setSecrets(secretsRes.data || []);
-      setRequests(requestsRes.data || []);
+      // Load access requests for user's secrets
+      const { data: requestsData, error: requestsError } = await supabase
+        .from("access_requests")
+        .select("*, secrets!inner(title, max_views, owner_id)")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (requestsError) throw requestsError;
+
+      setSecrets(secretsData || []);
+      setRequests(requestsData || []);
     } catch (error: any) {
+      console.error("Error loading data:", error);
       toast.error(error.message);
     } finally {
       setLoading(false);
