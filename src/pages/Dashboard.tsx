@@ -26,6 +26,7 @@ interface AccessRequest {
   secret_id: string;
   secrets: {
     title: string;
+    max_views: number;
   };
 }
 
@@ -64,7 +65,7 @@ const Dashboard = () => {
         supabase.from("secrets").select("*").order("created_at", { ascending: false }),
         supabase
           .from("access_requests")
-          .select("*, secrets(title)")
+          .select("*, secrets(title, max_views)")
           .eq("status", "pending")
           .order("created_at", { ascending: false })
       ]);
@@ -86,7 +87,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleRequestAction = async (requestId: string, status: "approved" | "rejected") => {
+  const handleRequestAction = async (requestId: string, status: "approved" | "rejected", request: AccessRequest) => {
     try {
       const { error } = await supabase
         .from("access_requests")
@@ -94,6 +95,21 @@ const Dashboard = () => {
         .eq("id", requestId);
 
       if (error) throw error;
+
+      // If approved, create whitelist entry
+      if (status === "approved") {
+        const { error: whitelistError } = await supabase
+          .from("whitelists")
+          .insert({
+            secret_id: request.secret_id,
+            requester_email: request.requester_email,
+            allowed_views: request.secrets.max_views || 1,
+            remaining_views: request.secrets.max_views || 1,
+          });
+
+        if (whitelistError) throw whitelistError;
+      }
+
       toast.success(`Request ${status}!`);
       loadData();
     } catch (error: any) {
@@ -217,7 +233,7 @@ const Dashboard = () => {
                           <div className="flex gap-2">
                             <Button
                               size="sm"
-                              onClick={() => handleRequestAction(request.id, "approved")}
+                              onClick={() => handleRequestAction(request.id, "approved", request)}
                               className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
                             >
                               <CheckCircle className="w-3 h-3 mr-1" />
@@ -226,7 +242,7 @@ const Dashboard = () => {
                             <Button
                               size="sm"
                               variant="destructive"
-                              onClick={() => handleRequestAction(request.id, "rejected")}
+                              onClick={() => handleRequestAction(request.id, "rejected", request)}
                               className="flex-1"
                             >
                               <XCircle className="w-3 h-3 mr-1" />
