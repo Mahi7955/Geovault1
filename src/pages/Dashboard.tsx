@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Shield, Plus, Key, LogOut, Eye, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Shield, Plus, Key, LogOut, Eye, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Secret {
@@ -17,24 +17,11 @@ interface Secret {
   created_at: string;
 }
 
-interface AccessRequest {
-  id: string;
-  requester_email: string;
-  justification: string;
-  status: string;
-  created_at: string;
-  secret_id: string;
-  secrets: {
-    title: string;
-    max_views: number;
-  };
-}
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [secrets, setSecrets] = useState<Secret[]>([]);
-  const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -69,17 +56,7 @@ const Dashboard = () => {
 
       if (secretsError) throw secretsError;
 
-      // Load access requests for user's secrets
-      const { data: requestsData, error: requestsError } = await supabase
-        .from("access_requests")
-        .select("*, secrets!inner(title, max_views, owner_id)")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
-
-      if (requestsError) throw requestsError;
-
       setSecrets(secretsData || []);
-      setRequests(requestsData || []);
     } catch (error: any) {
       console.error("Error loading data:", error);
       toast.error(error.message);
@@ -93,35 +70,6 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleRequestAction = async (requestId: string, status: "approved" | "rejected", request: AccessRequest) => {
-    try {
-      const { error } = await supabase
-        .from("access_requests")
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq("id", requestId);
-
-      if (error) throw error;
-
-      // If approved, create whitelist entry
-      if (status === "approved") {
-        const { error: whitelistError } = await supabase
-          .from("whitelists")
-          .insert({
-            secret_id: request.secret_id,
-            requester_email: request.requester_email,
-            allowed_views: request.secrets.max_views || 1,
-            remaining_views: request.secrets.max_views || 1,
-          });
-
-        if (whitelistError) throw whitelistError;
-      }
-
-      toast.success(`Request ${status}!`);
-      loadData();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20">
@@ -148,122 +96,60 @@ const Dashboard = () => {
       </nav>
 
       <main className="relative container mx-auto px-4 py-8 space-y-8">
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-primary/20 bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Key className="w-5 h-5 text-primary" />
-                    Your Secrets
-                  </CardTitle>
-                  <CardDescription>Manage your encrypted secrets</CardDescription>
-                </div>
-                <Button
-                  onClick={() => navigate("/create-secret")}
-                  className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Secret
-                </Button>
+        <Card className="border-primary/20 bg-card/80 backdrop-blur-sm">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="w-5 h-5 text-primary" />
+                  Your Secrets
+                </CardTitle>
+                <CardDescription>Manage your encrypted secrets</CardDescription>
               </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-muted-foreground">Loading...</p>
-              ) : secrets.length === 0 ? (
-                <p className="text-muted-foreground">No secrets yet. Create your first one!</p>
-              ) : (
-                <div className="space-y-3">
-                  {secrets.map((secret) => (
-                    <Card key={secret.id} className="bg-secondary/30 border-border/50 hover:border-primary/30 transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-semibold mb-1">{secret.title}</h4>
-                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" />
-                                {secret.remaining_views}/{secret.max_views} views
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                Expires {new Date(secret.expire_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                          <Badge variant={secret.is_active ? "default" : "secondary"}>
-                            {secret.is_active ? "Active" : "Expired"}
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/20 bg-card/80 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-accent" />
-                Access Requests
-              </CardTitle>
-              <CardDescription>Pending requests from viewers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-muted-foreground">Loading...</p>
-              ) : requests.length === 0 ? (
-                <p className="text-muted-foreground">No pending requests</p>
-              ) : (
-                <div className="space-y-3">
-                  {requests.map((request) => (
-                    <Card key={request.id} className="bg-secondary/30 border-border/50">
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          <div>
-                            <h4 className="font-semibold text-sm mb-1">
-                              Secret: {request.secrets.title}
-                            </h4>
-                            <p className="text-sm text-muted-foreground mb-1">
-                              From: {request.requester_email}
-                            </p>
-                            {request.justification && (
-                              <p className="text-xs text-muted-foreground italic">
-                                "{request.justification}"
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => handleRequestAction(request.id, "approved", request)}
-                              className="flex-1 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                            >
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRequestAction(request.id, "rejected", request)}
-                              className="flex-1"
-                            >
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Reject
-                            </Button>
+              <Button
+                onClick={() => navigate("/create-secret")}
+                className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Secret
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : secrets.length === 0 ? (
+              <p className="text-muted-foreground">No secrets yet. Create your first one!</p>
+            ) : (
+              <div className="space-y-3">
+                {secrets.map((secret) => (
+                  <Card key={secret.id} className="bg-secondary/30 border-border/50 hover:border-primary/30 transition-colors">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-semibold mb-1">{secret.title}</h4>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Eye className="w-3 h-3" />
+                              {secret.remaining_views}/{secret.max_views} views
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Expires {new Date(secret.expire_at).toLocaleDateString()}
+                            </span>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                        <Badge variant={secret.is_active ? "default" : "secondary"}>
+                          {secret.is_active ? "Active" : "Expired"}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

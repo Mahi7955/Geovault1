@@ -14,50 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      access_requests: {
-        Row: {
-          created_at: string
-          id: string
-          justification: string | null
-          requester_email: string
-          requester_ip: string | null
-          requester_location: Json | null
-          secret_id: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          justification?: string | null
-          requester_email: string
-          requester_ip?: string | null
-          requester_location?: Json | null
-          secret_id: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          justification?: string | null
-          requester_email?: string
-          requester_ip?: string | null
-          requester_location?: Json | null
-          secret_id?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "access_requests_secret_id_fkey"
-            columns: ["secret_id"]
-            isOneToOne: false
-            referencedRelation: "secrets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       audit_logs: {
         Row: {
           action: string
@@ -167,41 +123,6 @@ export type Database = {
           },
         ]
       }
-      whitelists: {
-        Row: {
-          allowed_views: number
-          created_at: string
-          id: string
-          remaining_views: number
-          requester_email: string
-          secret_id: string
-        }
-        Insert: {
-          allowed_views?: number
-          created_at?: string
-          id?: string
-          remaining_views: number
-          requester_email: string
-          secret_id: string
-        }
-        Update: {
-          allowed_views?: number
-          created_at?: string
-          id?: string
-          remaining_views?: number
-          requester_email?: string
-          secret_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "whitelists_secret_id_fkey"
-            columns: ["secret_id"]
-            isOneToOne: false
-            referencedRelation: "secrets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -210,10 +131,6 @@ export type Database = {
       deactivate_expired_secrets: {
         Args: Record<PropertyKey, never>
         Returns: undefined
-      }
-      is_whitelisted_for_secret: {
-        Args: { _secret_id: string; _user_id: string }
-        Returns: boolean
       }
     }
     Enums: {
