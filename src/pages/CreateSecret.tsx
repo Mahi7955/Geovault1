@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Shield, ArrowLeft, Lock, Copy, Check } from "lucide-react";
+import LocationPicker from "@/components/LocationPicker";
 
 const CreateSecret = () => {
   const navigate = useNavigate();
@@ -20,29 +21,22 @@ const CreateSecret = () => {
     maxViews: 1,
     expirationHours: 24
   });
+  const [restrictedLat, setRestrictedLat] = useState<number | null>(null);
+  const [restrictedLng, setRestrictedLng] = useState<number | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!restrictedLat || !restrictedLng) {
+      toast.error("Please select a location on the map");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-
-      // Get user's current location
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error("Geolocation is not supported by your browser"));
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
 
       // Simple encryption (in production, use proper encryption library)
       const encrypted = btoa(formData.content);
@@ -61,7 +55,7 @@ const CreateSecret = () => {
           max_views: formData.maxViews,
           remaining_views: formData.maxViews,
           expire_at: expireAt.toISOString(),
-          geo_restrictions: { latitude, longitude }
+          geo_restrictions: { latitude: restrictedLat, longitude: restrictedLng }
         })
         .select()
         .single();
@@ -71,11 +65,7 @@ const CreateSecret = () => {
       toast.success("Secret created with location restriction!");
       setSecretId(data.id);
     } catch (error: any) {
-      if (error.code === 1) {
-        toast.error("Location access denied. Please enable location services.");
-      } else {
-        toast.error(error.message);
-      }
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -248,12 +238,16 @@ const CreateSecret = () => {
                 </div>
               </div>
 
-              <div className="space-y-2 p-4 border border-border/50 rounded-lg bg-accent/10">
-                <p className="text-sm font-medium text-muted-foreground">
-                  📍 Location-Based Access Control
-                </p>
+              <div className="space-y-2">
+                <Label>Restricted Location (Required)</Label>
+                <LocationPicker
+                  onLocationSelect={(lat, lng) => {
+                    setRestrictedLat(lat);
+                    setRestrictedLng(lng);
+                  }}
+                />
                 <p className="text-xs text-muted-foreground">
-                  Your current location will be captured and used to restrict access. Viewers must be within 100 meters of this location to view the secret.
+                  Viewers must be within 100 meters of this location to view the secret
                 </p>
               </div>
 
