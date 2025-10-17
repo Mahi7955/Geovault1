@@ -18,8 +18,7 @@ const CreateSecret = () => {
     title: "",
     content: "",
     maxViews: 1,
-    expirationHours: 24,
-    geoRestrictions: ""
+    expirationHours: 24
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,6 +28,21 @@ const CreateSecret = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      // Get user's current location
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Geolocation is not supported by your browser"));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
 
       // Simple encryption (in production, use proper encryption library)
       const encrypted = btoa(formData.content);
@@ -47,17 +61,21 @@ const CreateSecret = () => {
           max_views: formData.maxViews,
           remaining_views: formData.maxViews,
           expire_at: expireAt.toISOString(),
-          geo_restrictions: formData.geoRestrictions ? JSON.parse(formData.geoRestrictions) : null
+          geo_restrictions: { latitude, longitude }
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success("Secret created successfully!");
+      toast.success("Secret created with location restriction!");
       setSecretId(data.id);
     } catch (error: any) {
-      toast.error(error.message);
+      if (error.code === 1) {
+        toast.error("Location access denied. Please enable location services.");
+      } else {
+        toast.error(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -124,7 +142,7 @@ const CreateSecret = () => {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Recipients will need to request access before viewing
+                  Recipients must be within 100 meters of your current location to view
                 </p>
               </div>
 
@@ -230,19 +248,12 @@ const CreateSecret = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="geoRestrictions">
-                  Geographic Restrictions (optional)
-                </Label>
-                <Input
-                  id="geoRestrictions"
-                  placeholder='{"countries": ["US", "UK"]}'
-                  value={formData.geoRestrictions}
-                  onChange={(e) => setFormData({ ...formData, geoRestrictions: e.target.value })}
-                  className="bg-secondary/50 border-border focus:border-primary"
-                />
+              <div className="space-y-2 p-4 border border-border/50 rounded-lg bg-accent/10">
+                <p className="text-sm font-medium text-muted-foreground">
+                  📍 Location-Based Access Control
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Enter valid JSON with country codes
+                  Your current location will be captured and used to restrict access. Viewers must be within 100 meters of this location to view the secret.
                 </p>
               </div>
 

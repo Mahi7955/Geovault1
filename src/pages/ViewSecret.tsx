@@ -1,17 +1,22 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Lock, AlertCircle } from "lucide-react";
+import { Shield, Lock, AlertCircle, MapPin, CheckCircle, XCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ViewSecret = () => {
   const { secretId } = useParams();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
   const [secretInfo, setSecretInfo] = useState<any>(null);
   const [decryptedContent, setDecryptedContent] = useState("");
+  const [accessGranted, setAccessGranted] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [denialMessage, setDenialMessage] = useState("");
+  const [distance, setDistance] = useState<number | null>(null);
 
   useEffect(() => {
     checkAccess();
@@ -28,11 +33,13 @@ const ViewSecret = () => {
 
       if (secretError || !secret) {
         toast.error("Secret not found");
+        setLoading(false);
         return;
       }
 
       if (!secret.is_active) {
         toast.error("This secret is no longer available");
+        setLoading(false);
         return;
       }
 
@@ -41,6 +48,60 @@ const ViewSecret = () => {
     } catch (error: any) {
       toast.error(error.message);
       setLoading(false);
+    }
+  };
+
+  const verifyLocation = async () => {
+    setVerifying(true);
+    try {
+      // Get user's current location
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Geolocation is not supported by your browser"));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+
+      // Call edge function to verify location
+      const { data, error } = await supabase.functions.invoke('verify-location', {
+        body: {
+          secretId,
+          viewerLat: latitude,
+          viewerLng: longitude
+        }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        toast.error("Failed to verify location");
+        return;
+      }
+
+      if (data.allowed) {
+        setAccessGranted(true);
+        setDistance(data.distance);
+        setDecryptedContent(atob(data.encryptedContent));
+        toast.success(`Access granted! You are ${data.distance}m away.`);
+      } else {
+        setAccessDenied(true);
+        setDenialMessage(data.message);
+        setDistance(data.distance);
+      }
+    } catch (error: any) {
+      if (error.code === 1) {
+        toast.error("Location access denied. Please enable location services.");
+      } else {
+        toast.error(error.message);
+      }
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -82,13 +143,50 @@ const ViewSecret = () => {
               Ready to view this secret
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Location verification will be required to access this secret.
-              </AlertDescription>
-            </Alert>
+          <CardContent className="space-y-6">
+            {!accessGranted && !accessDenied && (
+              <>
+                <Alert>
+                  <MapPin className="h-4 w-4" />
+                  <AlertDescription>
+                    Location verification is required to access this secret. You must be within 100 meters of the designated location.
+                  </AlertDescription>
+                </Alert>
+                <Button 
+                  onClick={verifyLocation}
+                  disabled={verifying}
+                  className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                >
+                  {verifying ? "Verifying Location..." : "Verify Location & View Secret"}
+                </Button>
+              </>
+            )}
+
+            {accessGranted && (
+              <div className="space-y-4">
+                <Alert className="border-green-500/50 bg-green-500/10">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <AlertDescription className="text-green-500">
+                    Access Granted! You are {distance}m from the allowed location.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">Secret Content:</p>
+                  <div className="p-4 bg-secondary/50 border border-border rounded-lg">
+                    <p className="text-sm whitespace-pre-wrap">{decryptedContent}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {accessDenied && (
+              <Alert className="border-red-500/50 bg-red-500/10">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <AlertDescription className="text-red-500">
+                  {denialMessage}
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </main>
