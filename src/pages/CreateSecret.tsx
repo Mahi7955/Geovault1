@@ -22,6 +22,36 @@ const CreateSecret = () => {
   });
   const [restrictedLat, setRestrictedLat] = useState<number | null>(null);
   const [restrictedLng, setRestrictedLng] = useState<number | null>(null);
+  const [fetchingLocation, setFetchingLocation] = useState(false);
+
+  const getCurrentLocation = async () => {
+    setFetchingLocation(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Geolocation is not supported by your browser"));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
+      });
+
+      setRestrictedLat(position.coords.latitude);
+      setRestrictedLng(position.coords.longitude);
+      toast.success("Location captured successfully!");
+    } catch (error: any) {
+      if (error.code === 1) {
+        toast.error("Location access denied. Please enable location services.");
+      } else {
+        toast.error("Failed to get location: " + error.message);
+      }
+    } finally {
+      setFetchingLocation(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -239,6 +269,14 @@ const CreateSecret = () => {
 
               <div className="space-y-2">
                 <Label className="text-destructive font-semibold">Restricted Location (Required)</Label>
+                <Button
+                  type="button"
+                  onClick={getCurrentLocation}
+                  disabled={fetchingLocation}
+                  className="w-full mb-4 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                >
+                  {fetchingLocation ? "Getting Your Location..." : "Use My Current Location"}
+                </Button>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="latitude">Latitude</Label>
@@ -268,7 +306,7 @@ const CreateSecret = () => {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Viewers must be within 100 meters of this location to view the secret
+                  Click the button above to automatically use your current location, or enter coordinates manually. Viewers must be within 100 meters to access the secret.
                 </p>
               </div>
 
