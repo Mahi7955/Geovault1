@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Shield, ArrowLeft, Lock, Copy, Check } from "lucide-react";
-import LocationPicker from "@/components/LocationPicker";
 
 const CreateSecret = () => {
   const navigate = useNavigate();
@@ -240,12 +239,34 @@ const CreateSecret = () => {
 
               <div className="space-y-2">
                 <Label className="text-destructive font-semibold">Restricted Location (Required)</Label>
-                <LocationPicker
-                  onLocationSelect={(lat, lng) => {
-                    setRestrictedLat(lat);
-                    setRestrictedLng(lng);
-                  }}
-                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="latitude">Latitude</Label>
+                    <Input
+                      id="latitude"
+                      type="number"
+                      step="any"
+                      placeholder="e.g., 28.6139"
+                      value={restrictedLat || ""}
+                      onChange={(e) => setRestrictedLat(parseFloat(e.target.value))}
+                      required
+                      className="bg-secondary/50 border-border focus:border-primary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="longitude">Longitude</Label>
+                    <Input
+                      id="longitude"
+                      type="number"
+                      step="any"
+                      placeholder="e.g., 77.2090"
+                      value={restrictedLng || ""}
+                      onChange={(e) => setRestrictedLng(parseFloat(e.target.value))}
+                      required
+                      className="bg-secondary/50 border-border focus:border-primary"
+                    />
+                  </div>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Viewers must be within 100 meters of this location to view the secret
                 </p>
