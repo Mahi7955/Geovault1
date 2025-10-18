@@ -15,8 +15,11 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }: LocationPi
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [marker, setMarker] = useState<google.maps.Marker | null>(null);
-  const [selectedLat, setSelectedLat] = useState(initialLat || 0);
-  const [selectedLng, setSelectedLng] = useState(initialLng || 0);
+  // Default to India coordinates (New Delhi) if no location is provided
+  const defaultLat = 28.6139;
+  const defaultLng = 77.2090;
+  const [selectedLat, setSelectedLat] = useState(initialLat || defaultLat);
+  const [selectedLng, setSelectedLng] = useState(initialLng || defaultLng);
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(true);
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -62,7 +65,7 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }: LocationPi
     const initMap = () => {
       try {
         const mapInstance = new google.maps.Map(mapRef.current!, {
-          center: { lat: initialLat || 0, lng: initialLng || 0 },
+          center: { lat: initialLat || defaultLat, lng: initialLng || defaultLng },
           zoom: 15,
           mapTypeControl: true,
           streetViewControl: true,
@@ -94,7 +97,11 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }: LocationPi
             },
             (error) => {
               console.error("Error getting location:", error);
-              toast.error("Could not get your location");
+              toast.error("Could not get your location. Defaulting to India.");
+              // Default to India if geolocation fails
+              mapInstance.setCenter({ lat: defaultLat, lng: defaultLng });
+              updateMarker(defaultLat, defaultLng, mapInstance);
+              reverseGeocode(defaultLat, defaultLng);
               setLoading(false);
             }
           );

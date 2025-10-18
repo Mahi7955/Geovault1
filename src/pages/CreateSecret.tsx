@@ -239,7 +239,7 @@ const CreateSecret = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Restricted Location (Required)</Label>
+                <Label className="text-destructive font-semibold">Restricted Location (Required)</Label>
                 <LocationPicker
                   onLocationSelect={(lat, lng) => {
                     setRestrictedLat(lat);
