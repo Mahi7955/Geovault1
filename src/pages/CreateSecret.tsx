@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,23 @@ const CreateSecret = () => {
   const [restrictedLat, setRestrictedLat] = useState<number | null>(null);
   const [restrictedLng, setRestrictedLng] = useState<number | null>(null);
   const [fetchingLocation, setFetchingLocation] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        toast.error("Please sign in to create a secret");
+        navigate("/auth");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const getCurrentLocation = async () => {
     setFetchingLocation(true);
