@@ -37,8 +37,10 @@ const ViewSecret = () => {
         return;
       }
 
-      if (!secret.is_active) {
-        toast.error("This secret is no longer available");
+      if (!secret.is_active || secret.remaining_views <= 0) {
+        toast.error("This secret is no longer available - view limit reached");
+        setAccessDenied(true);
+        setDenialMessage("This secret has reached its maximum number of views and is no longer available.");
         setLoading(false);
         return;
       }
