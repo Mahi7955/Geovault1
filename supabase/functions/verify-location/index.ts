@@ -112,7 +112,7 @@ serve(async (req) => {
           viewerLocation: viewerAddress?.formattedAddress || 'Unknown location',
           message: `Access Denied: You are ${Math.round(distance)} meters away from the allowed area. You must be within 100 meters.`
         }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
