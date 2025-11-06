@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Lock, AlertCircle, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { Shield, Lock, AlertCircle, MapPin, CheckCircle, XCircle, FileImage } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ViewSecret = () => {
@@ -17,6 +17,8 @@ const ViewSecret = () => {
   const [accessDenied, setAccessDenied] = useState(false);
   const [denialMessage, setDenialMessage] = useState("");
   const [distance, setDistance] = useState<number | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<string | null>(null);
 
   useEffect(() => {
     checkAccess();
@@ -90,6 +92,27 @@ const ViewSecret = () => {
         setAccessGranted(true);
         setDistance(data.distance);
         setDecryptedContent(atob(data.encryptedContent));
+        
+        // Get file URL if exists
+        if (data.fileUrl) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('secret-files')
+            .getPublicUrl(data.fileUrl);
+          setFileUrl(publicUrl);
+          
+          // Determine file type from extension
+          const extension = data.fileUrl.split('.').pop()?.toLowerCase();
+          if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
+            setFileType('image');
+          } else if (['mp4', 'webm'].includes(extension || '')) {
+            setFileType('video');
+          } else if (['mp3', 'wav', 'ogg'].includes(extension || '')) {
+            setFileType('audio');
+          } else if (extension === 'pdf') {
+            setFileType('pdf');
+          }
+        }
+        
         toast.success(`Access granted! You are ${data.distance}m away.`);
       } else {
         setAccessDenied(true);
@@ -178,6 +201,50 @@ const ViewSecret = () => {
                     <p className="text-sm whitespace-pre-wrap">{decryptedContent}</p>
                   </div>
                 </div>
+                
+                {fileUrl && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <FileImage className="w-4 h-4" />
+                      Attached Media:
+                    </p>
+                    <div className="p-4 bg-secondary/50 border border-border rounded-lg">
+                      {fileType === 'image' && (
+                        <img 
+                          src={fileUrl} 
+                          alt="Secret attachment" 
+                          className="w-full rounded-lg max-h-96 object-contain"
+                        />
+                      )}
+                      {fileType === 'video' && (
+                        <video 
+                          src={fileUrl} 
+                          controls 
+                          className="w-full rounded-lg max-h-96"
+                        />
+                      )}
+                      {fileType === 'audio' && (
+                        <audio 
+                          src={fileUrl} 
+                          controls 
+                          className="w-full"
+                        />
+                      )}
+                      {fileType === 'pdf' && (
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">PDF Document</p>
+                          <Button
+                            onClick={() => window.open(fileUrl, '_blank')}
+                            variant="outline"
+                            className="w-full"
+                          >
+                            Open PDF
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

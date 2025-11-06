@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Shield, ArrowLeft, Lock, Copy, Check } from "lucide-react";
+import { Shield, ArrowLeft, Lock, Copy, Check, Upload, X, FileImage, FileVideo, FileAudio } from "lucide-react";
 
 const CreateSecret = () => {
   const navigate = useNavigate();
@@ -23,6 +23,8 @@ const CreateSecret = () => {
   const [restrictedLat, setRestrictedLat] = useState<number | null>(null);
   const [restrictedLng, setRestrictedLng] = useState<number | null>(null);
   const [fetchingLocation, setFetchingLocation] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -70,6 +72,57 @@ const CreateSecret = () => {
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (50MB max)
+    if (file.size > 52428800) {
+      toast.error("File size must be less than 50MB");
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/webm',
+      'audio/mpeg', 'audio/wav', 'audio/ogg',
+      'application/pdf'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("File type not supported");
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+
+    toast.success("File selected");
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+  };
+
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return <FileImage className="w-5 h-5" />;
+    if (type.startsWith('video/')) return <FileVideo className="w-5 h-5" />;
+    if (type.startsWith('audio/')) return <FileAudio className="w-5 h-5" />;
+    return <Upload className="w-5 h-5" />;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -83,6 +136,23 @@ const CreateSecret = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      let fileUrl = null;
+
+      // Upload file if selected
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('secret-files')
+          .upload(fileName, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        fileUrl = fileName;
+        toast.success("File uploaded successfully");
+      }
 
       // Simple encryption (in production, use proper encryption library)
       const encrypted = btoa(formData.content);
@@ -101,7 +171,8 @@ const CreateSecret = () => {
           max_views: formData.maxViews,
           remaining_views: formData.maxViews,
           expire_at: expireAt.toISOString(),
-          geo_restrictions: { latitude: restrictedLat, longitude: restrictedLng }
+          geo_restrictions: { latitude: restrictedLat, longitude: restrictedLng },
+          file_url: fileUrl
         })
         .select()
         .single();
@@ -254,6 +325,62 @@ const CreateSecret = () => {
                   rows={6}
                   className="bg-secondary/50 border-border focus:border-primary resize-none"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Attach Media File (Optional)</Label>
+                <div className="space-y-3">
+                  {!selectedFile ? (
+                    <div className="relative">
+                      <Input
+                        type="file"
+                        id="file-upload"
+                        className="hidden"
+                        onChange={handleFileChange}
+                        accept="image/*,video/*,audio/*,application/pdf"
+                      />
+                      <Label
+                        htmlFor="file-upload"
+                        className="flex items-center justify-center gap-2 p-6 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors bg-secondary/30"
+                      >
+                        <Upload className="w-6 h-6 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload image, video, audio or PDF (max 50MB)
+                        </span>
+                      </Label>
+                    </div>
+                  ) : (
+                    <div className="relative p-4 border border-border rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-3">
+                        {filePreview ? (
+                          <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded" />
+                        ) : (
+                          <div className="w-16 h-16 flex items-center justify-center bg-primary/10 rounded">
+                            {getFileIcon(selectedFile.type)}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={removeFile}
+                          className="shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Supported: Images (JPEG, PNG, GIF, WebP), Videos (MP4, WebM), Audio (MP3, WAV, OGG), PDF
+                  </p>
+                </div>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2">

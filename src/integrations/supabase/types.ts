@@ -79,6 +79,7 @@ export type Database = {
           encrypted_content: string
           encryption_key_hash: string
           expire_at: string
+          file_url: string | null
           geo_restrictions: Json | null
           id: string
           is_active: boolean
@@ -92,6 +93,7 @@ export type Database = {
           encrypted_content: string
           encryption_key_hash: string
           expire_at: string
+          file_url?: string | null
           geo_restrictions?: Json | null
           id?: string
           is_active?: boolean
@@ -105,6 +107,7 @@ export type Database = {
           encrypted_content?: string
           encryption_key_hash?: string
           expire_at?: string
+          file_url?: string | null
           geo_restrictions?: Json | null
           id?: string
           is_active?: boolean
@@ -128,10 +131,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      deactivate_expired_secrets: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      deactivate_expired_secrets: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

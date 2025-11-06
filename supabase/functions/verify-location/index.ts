@@ -70,7 +70,7 @@ serve(async (req) => {
     // Get secret's allowed location
     const { data: secret, error: secretError } = await supabase
       .from('secrets')
-      .select('geo_restrictions, encrypted_content, remaining_views')
+      .select('geo_restrictions, encrypted_content, remaining_views, file_url')
       .eq('id', secretId)
       .eq('is_active', true)
       .maybeSingle();
@@ -137,6 +137,7 @@ serve(async (req) => {
         allowed: true,
         distance: Math.round(distance),
         encryptedContent: secret.encrypted_content,
+        fileUrl: secret.file_url,
         viewerLocation: viewerAddress
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
