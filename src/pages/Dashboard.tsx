@@ -5,10 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Shield, Plus, Key, LogOut, Eye, Clock, Search, FileKey, Activity } from "lucide-react";
+import { Shield, Plus, Key, LogOut, Eye, Clock, Search, FileKey, Activity, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/StatCard";
 import { ShareSecretDialog } from "@/components/ShareSecretDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Secret {
   id: string;
@@ -18,6 +29,7 @@ interface Secret {
   expire_at: string;
   is_active: boolean;
   created_at: string;
+  file_url: string | null;
 }
 
 
@@ -85,6 +97,35 @@ const Dashboard = () => {
         secret.title.toLowerCase().includes(query.toLowerCase())
       );
       setFilteredSecrets(filtered);
+    }
+  };
+
+  const handleDeleteSecret = async (secretId: string, fileUrl: string | null) => {
+    try {
+      // Delete file from storage if it exists
+      if (fileUrl) {
+        const { error: storageError } = await supabase.storage
+          .from('secret-files')
+          .remove([fileUrl]);
+        
+        if (storageError) {
+          console.error("Error deleting file:", storageError);
+        }
+      }
+
+      // Delete secret from database
+      const { error: deleteError } = await supabase
+        .from('secrets')
+        .delete()
+        .eq('id', secretId);
+
+      if (deleteError) throw deleteError;
+
+      toast.success("Secret deleted successfully");
+      loadData(); // Refresh the list
+    } catch (error: any) {
+      console.error("Error deleting secret:", error);
+      toast.error(error.message);
     }
   };
 
@@ -182,6 +223,35 @@ const Dashboard = () => {
                         </div>
                         <div className="flex items-center gap-2">
                           <ShareSecretDialog secretId={secret.id} />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-destructive/20 hover:bg-destructive/10 hover:border-destructive/40"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2 text-destructive" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Secret</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{secret.title}"? This action cannot be undone and will permanently delete the secret and any attached files.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteSecret(secret.id, secret.file_url)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                           <Badge variant={secret.is_active ? "default" : "secondary"}>
                             {secret.is_active ? "Active" : "Expired"}
                           </Badge>
