@@ -3,9 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Shield, Plus, Key, LogOut, Eye, Clock } from "lucide-react";
+import { Shield, Plus, Key, LogOut, Eye, Clock, Search, FileKey, Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/StatCard";
+import { ShareSecretDialog } from "@/components/ShareSecretDialog";
 
 interface Secret {
   id: string;
@@ -22,7 +25,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [secrets, setSecrets] = useState<Secret[]>([]);
+  const [filteredSecrets, setFilteredSecrets] = useState<Secret[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -57,6 +62,7 @@ const Dashboard = () => {
       if (secretsError) throw secretsError;
 
       setSecrets(secretsData || []);
+      setFilteredSecrets(secretsData || []);
     } catch (error: any) {
       console.error("Error loading data:", error);
       toast.error(error.message);
@@ -68,6 +74,24 @@ const Dashboard = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setFilteredSecrets(secrets);
+    } else {
+      const filtered = secrets.filter(secret =>
+        secret.title.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredSecrets(filtered);
+    }
+  };
+
+  const stats = {
+    total: secrets.length,
+    active: secrets.filter(s => s.is_active).length,
+    totalViews: secrets.reduce((acc, s) => acc + (s.max_views - s.remaining_views), 0)
   };
 
 
@@ -96,6 +120,12 @@ const Dashboard = () => {
       </nav>
 
       <main className="relative container mx-auto px-4 py-8 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard title="Total Secrets" value={stats.total} icon={FileKey} />
+          <StatCard title="Active Secrets" value={stats.active} icon={Shield} gradient="from-accent to-primary" />
+          <StatCard title="Total Views" value={stats.totalViews} icon={Activity} gradient="from-primary via-accent to-primary" />
+        </div>
+
         <Card className="border-primary/20 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -115,14 +145,25 @@ const Dashboard = () => {
               </Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search secrets..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 bg-secondary/50 border-border focus:border-primary"
+              />
+            </div>
             {loading ? (
               <p className="text-muted-foreground">Loading...</p>
-            ) : secrets.length === 0 ? (
-              <p className="text-muted-foreground">No secrets yet. Create your first one!</p>
+            ) : filteredSecrets.length === 0 ? (
+              <p className="text-muted-foreground">
+                {searchQuery ? "No secrets match your search." : "No secrets yet. Create your first one!"}
+              </p>
             ) : (
               <div className="space-y-3">
-                {secrets.map((secret) => (
+                {filteredSecrets.map((secret) => (
                   <Card key={secret.id} className="bg-secondary/30 border-border/50 hover:border-primary/30 transition-colors">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
@@ -139,9 +180,12 @@ const Dashboard = () => {
                             </span>
                           </div>
                         </div>
-                        <Badge variant={secret.is_active ? "default" : "secondary"}>
-                          {secret.is_active ? "Active" : "Expired"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <ShareSecretDialog secretId={secret.id} />
+                          <Badge variant={secret.is_active ? "default" : "secondary"}>
+                            {secret.is_active ? "Active" : "Expired"}
+                          </Badge>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

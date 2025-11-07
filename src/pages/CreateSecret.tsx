@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Shield, ArrowLeft, Lock, Copy, Check, Upload, X, FileImage, FileVideo, FileAudio } from "lucide-react";
+import { PasswordStrength } from "@/components/PasswordStrength";
 
 const CreateSecret = () => {
   const navigate = useNavigate();
