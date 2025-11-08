@@ -19,9 +19,12 @@ const Index = () => {
               SecureVault
             </span>
           </div>
-          <Button onClick={() => navigate("/auth")} className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
-            Get Started
-          </Button>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => navigate("/docs")}>Documentation</Button>
+            <Button onClick={() => navigate("/auth")} className="bg-gradient-to-r from-primary to-accent hover:opacity-90">
+              Get Started
+            </Button>
+          </div>
         </div>
       </nav>
 
