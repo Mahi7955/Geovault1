@@ -3,7 +3,9 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, Home, BookOpen, Server, Database, Lock, Users, FileText, Rocket, AlertCircle, HelpCircle, Code, Shield } from "lucide-react";
+import { Menu, Home, BookOpen, Server, Database, Lock, Users, FileText, Rocket, AlertCircle, HelpCircle, Code, Shield, Download } from "lucide-react";
+import html2pdf from "html2pdf.js";
+import { toast } from "sonner";
 
 const docSections = [
   {
@@ -125,6 +127,64 @@ const Sidebar = () => {
 };
 
 export default function DocsLayout() {
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    toast.info("Preparing PDF export...");
+
+    try {
+      // Create a temporary container with all documentation content
+      const printContainer = document.createElement("div");
+      printContainer.style.position = "absolute";
+      printContainer.style.left = "-9999px";
+      printContainer.style.width = "210mm"; // A4 width
+      document.body.appendChild(printContainer);
+
+      // Add title page
+      const titlePage = document.createElement("div");
+      titlePage.innerHTML = `
+        <div style="text-align: center; padding: 100px 40px; page-break-after: always;">
+          <h1 style="font-size: 48px; font-weight: bold; margin-bottom: 20px; color: #1a1a1a;">SecureVault</h1>
+          <h2 style="font-size: 24px; color: #666; margin-bottom: 40px;">Complete Documentation</h2>
+          <p style="font-size: 14px; color: #999;">Generated on ${new Date().toLocaleDateString()}</p>
+        </div>
+      `;
+      printContainer.appendChild(titlePage);
+
+      // Get the main content area
+      const mainContent = document.querySelector(".max-w-4xl");
+      if (mainContent) {
+        const clonedContent = mainContent.cloneNode(true) as HTMLElement;
+        clonedContent.style.padding = "40px";
+        printContainer.appendChild(clonedContent);
+      }
+
+      // Configure PDF options
+      const options = {
+        margin: [10, 10, 10, 10] as [number, number, number, number],
+        filename: `SecureVault-Documentation-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: "jpeg" as const, quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      };
+
+      // Generate PDF
+      await html2pdf().set(options).from(printContainer).save();
+      
+      // Cleanup
+      document.body.removeChild(printContainer);
+      
+      toast.success("PDF exported successfully!");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to export PDF. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
@@ -144,6 +204,19 @@ export default function DocsLayout() {
             <Sidebar />
           </SheetContent>
         </Sheet>
+      </div>
+
+      {/* Export PDF Button - Fixed position */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          onClick={handleExportPDF}
+          disabled={isExporting}
+          size="lg"
+          className="shadow-lg"
+        >
+          <Download className="w-5 h-5 mr-2" />
+          {isExporting ? "Exporting..." : "Export as PDF"}
+        </Button>
       </div>
 
       {/* Main Content */}
