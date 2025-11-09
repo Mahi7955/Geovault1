@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { createRoot } from "react-dom/client";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, Home, BookOpen, Server, Database, Lock, Users, FileText, Rocket, AlertCircle, HelpCircle, Code, Shield, Download } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { toast } from "sonner";
+
+// Import all documentation pages
+import Introduction from "./Introduction";
+import QuickStart from "./QuickStart";
+import Architecture from "./Architecture";
+import DatabaseDoc from "./Database";
+import Security from "./Security";
+import API from "./API";
 
 const docSections = [
   {
@@ -131,7 +140,7 @@ export default function DocsLayout() {
 
   const handleExportPDF = async () => {
     setIsExporting(true);
-    toast.info("Preparing PDF export...");
+    toast.info("Preparing comprehensive PDF export...");
 
     try {
       // Create a temporary container with all documentation content
@@ -139,36 +148,140 @@ export default function DocsLayout() {
       printContainer.style.position = "absolute";
       printContainer.style.left = "-9999px";
       printContainer.style.width = "210mm"; // A4 width
+      printContainer.style.fontFamily = "Arial, sans-serif";
+      printContainer.style.color = "#1a1a1a";
+      printContainer.style.backgroundColor = "#ffffff";
       document.body.appendChild(printContainer);
 
       // Add title page
       const titlePage = document.createElement("div");
       titlePage.innerHTML = `
         <div style="text-align: center; padding: 100px 40px; page-break-after: always;">
+          <div style="width: 80px; height: 80px; margin: 0 auto 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+            <span style="color: white; font-size: 40px;">🔒</span>
+          </div>
           <h1 style="font-size: 48px; font-weight: bold; margin-bottom: 20px; color: #1a1a1a;">SecureVault</h1>
           <h2 style="font-size: 24px; color: #666; margin-bottom: 40px;">Complete Documentation</h2>
-          <p style="font-size: 14px; color: #999;">Generated on ${new Date().toLocaleDateString()}</p>
+          <p style="font-size: 14px; color: #999; margin-bottom: 10px;">Generated on ${new Date().toLocaleDateString()}</p>
+          <p style="font-size: 12px; color: #aaa;">Comprehensive guide covering all features and implementation details</p>
         </div>
       `;
       printContainer.appendChild(titlePage);
 
-      // Get the main content area
-      const mainContent = document.querySelector(".max-w-4xl");
-      if (mainContent) {
-        const clonedContent = mainContent.cloneNode(true) as HTMLElement;
-        clonedContent.style.padding = "40px";
-        printContainer.appendChild(clonedContent);
+      // Add table of contents
+      const tocPage = document.createElement("div");
+      tocPage.innerHTML = `
+        <div style="padding: 40px; page-break-after: always;">
+          <h2 style="font-size: 32px; font-weight: bold; margin-bottom: 30px; color: #1a1a1a; border-bottom: 3px solid #667eea; padding-bottom: 10px;">Table of Contents</h2>
+          <div style="font-size: 14px; line-height: 2;">
+            <div style="margin-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 16px; color: #667eea; margin-bottom: 10px;">Getting Started</div>
+              <div style="margin-left: 20px;">
+                <div>1. Introduction to SecureVault</div>
+                <div>2. Quick Start Guide</div>
+              </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 16px; color: #667eea; margin-bottom: 10px;">Architecture</div>
+              <div style="margin-left: 20px;">
+                <div>3. System Architecture</div>
+              </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 16px; color: #667eea; margin-bottom: 10px;">Database</div>
+              <div style="margin-left: 20px;">
+                <div>4. Database Design</div>
+              </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 16px; color: #667eea; margin-bottom: 10px;">API Documentation</div>
+              <div style="margin-left: 20px;">
+                <div>5. API Reference</div>
+              </div>
+            </div>
+            <div style="margin-bottom: 20px;">
+              <div style="font-weight: bold; font-size: 16px; color: #667eea; margin-bottom: 10px;">Security</div>
+              <div style="margin-left: 20px;">
+                <div>6. Security Overview</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      printContainer.appendChild(tocPage);
+
+      // Define all documentation pages to export
+      const docPages = [
+        { component: Introduction, title: "Introduction to SecureVault" },
+        { component: QuickStart, title: "Quick Start Guide" },
+        { component: Architecture, title: "System Architecture" },
+        { component: DatabaseDoc, title: "Database Design" },
+        { component: API, title: "API Documentation" },
+        { component: Security, title: "Security Overview" },
+      ];
+
+      // Render each documentation page
+      for (let i = 0; i < docPages.length; i++) {
+        const pageSection = document.createElement("div");
+        pageSection.style.padding = "40px";
+        pageSection.style.pageBreakAfter = i < docPages.length - 1 ? "always" : "auto";
+        
+        // Add section number and title at the top
+        const sectionHeader = document.createElement("div");
+        sectionHeader.innerHTML = `
+          <div style="margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb;">
+            <span style="color: #667eea; font-weight: bold; font-size: 14px;">SECTION ${i + 1}</span>
+          </div>
+        `;
+        pageSection.appendChild(sectionHeader);
+
+        // Render the React component to HTML
+        const componentContainer = document.createElement("div");
+        const root = createRoot(componentContainer);
+        const PageComponent = docPages[i].component;
+        
+        // Render and wait for it to complete
+        await new Promise<void>((resolve) => {
+          root.render(<PageComponent />);
+          setTimeout(() => {
+            pageSection.appendChild(componentContainer);
+            resolve();
+          }, 100);
+        });
+
+        printContainer.appendChild(pageSection);
       }
+
+      // Wait a bit for all content to render
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Configure PDF options
       const options = {
-        margin: [10, 10, 10, 10] as [number, number, number, number],
-        filename: `SecureVault-Documentation-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: "jpeg" as const, quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" as const },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        margin: [15, 15, 15, 15] as [number, number, number, number],
+        filename: `SecureVault-Complete-Documentation-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: "jpeg" as const, quality: 0.95 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          letterRendering: true,
+          logging: false,
+          backgroundColor: "#ffffff"
+        },
+        jsPDF: { 
+          unit: "mm", 
+          format: "a4", 
+          orientation: "portrait" as const,
+          compress: true
+        },
+        pagebreak: { 
+          mode: ["avoid-all", "css", "legacy"],
+          before: ".page-break-before",
+          after: ".page-break-after",
+          avoid: ["img", "pre", "code"]
+        },
       };
+
+      toast.info("Generating PDF... This may take a moment.");
 
       // Generate PDF
       await html2pdf().set(options).from(printContainer).save();
@@ -176,7 +289,7 @@ export default function DocsLayout() {
       // Cleanup
       document.body.removeChild(printContainer);
       
-      toast.success("PDF exported successfully!");
+      toast.success("Complete documentation exported successfully!");
     } catch (error) {
       console.error("PDF export error:", error);
       toast.error("Failed to export PDF. Please try again.");
@@ -215,7 +328,7 @@ export default function DocsLayout() {
           className="shadow-lg"
         >
           <Download className="w-5 h-5 mr-2" />
-          {isExporting ? "Exporting..." : "Export as PDF"}
+          {isExporting ? "Exporting..." : "Export Complete Docs as PDF"}
         </Button>
       </div>
 
