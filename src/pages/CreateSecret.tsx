@@ -466,6 +466,42 @@ const CreateSecret = () => {
                 </p>
               </div>
 
+              <div className="space-y-3 p-4 border border-border rounded-lg bg-secondary/30">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2 text-base">
+                      <ScanFace className="w-4 h-4 text-primary" />
+                      Face Verification
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Only the registered face will be able to open this secret.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={faceEnabled}
+                    onCheckedChange={(v) => {
+                      setFaceEnabled(v);
+                      if (!v) setFaceDescriptor(null);
+                    }}
+                  />
+                </div>
+
+                {faceEnabled && (
+                  <div className="pt-2">
+                    <FaceCapture
+                      onCapture={(d) => setFaceDescriptor(d)}
+                      captureLabel="Capture Receiver's Face"
+                      capturedLabel="Face registered"
+                    />
+                    {faceDescriptor && (
+                      <p className="text-xs text-green-500 mt-2 flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Face descriptor saved (will be required to view)
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
