@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Shield, ArrowLeft, Lock, Copy, Check, Upload, X, FileImage, FileVideo, FileAudio } from "lucide-react";
+import { Shield, ArrowLeft, Lock, Copy, Check, Upload, X, FileImage, FileVideo, FileAudio, ScanFace } from "lucide-react";
 import { PasswordStrength } from "@/components/PasswordStrength";
+import { Switch } from "@/components/ui/switch";
+import { FaceCapture } from "@/components/FaceCapture";
 
 const CreateSecret = () => {
   const navigate = useNavigate();
@@ -26,6 +28,8 @@ const CreateSecret = () => {
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [faceEnabled, setFaceEnabled] = useState(false);
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -132,6 +136,11 @@ const CreateSecret = () => {
       return;
     }
 
+    if (faceEnabled && !faceDescriptor) {
+      toast.error("Please capture the receiver's face");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -173,7 +182,9 @@ const CreateSecret = () => {
           remaining_views: formData.maxViews,
           expire_at: expireAt.toISOString(),
           geo_restrictions: { latitude: restrictedLat, longitude: restrictedLng },
-          file_url: fileUrl
+          file_url: fileUrl,
+          face_verification_enabled: faceEnabled,
+          face_descriptor: faceEnabled && faceDescriptor ? (faceDescriptor as any) : null,
         })
         .select()
         .single();
@@ -453,6 +464,42 @@ const CreateSecret = () => {
                 <p className="text-xs text-muted-foreground">
                   Click the button above to automatically use your current location, or enter coordinates manually. Viewers must be within 100 meters to access the secret.
                 </p>
+              </div>
+
+              <div className="space-y-3 p-4 border border-border rounded-lg bg-secondary/30">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="flex items-center gap-2 text-base">
+                      <ScanFace className="w-4 h-4 text-primary" />
+                      Face Verification
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Only the registered face will be able to open this secret.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={faceEnabled}
+                    onCheckedChange={(v) => {
+                      setFaceEnabled(v);
+                      if (!v) setFaceDescriptor(null);
+                    }}
+                  />
+                </div>
+
+                {faceEnabled && (
+                  <div className="pt-2">
+                    <FaceCapture
+                      onCapture={(d) => setFaceDescriptor(d)}
+                      captureLabel="Capture Receiver's Face"
+                      capturedLabel="Face registered"
+                    />
+                    {faceDescriptor && (
+                      <p className="text-xs text-green-500 mt-2 flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Face descriptor saved (will be required to view)
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <Button

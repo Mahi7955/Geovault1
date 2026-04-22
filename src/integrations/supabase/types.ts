@@ -79,11 +79,16 @@ export type Database = {
           encrypted_content: string
           encryption_key_hash: string
           expire_at: string
+          face_attempts: number
+          face_descriptor: Json | null
+          face_verification_enabled: boolean
           file_url: string | null
           geo_restrictions: Json | null
           id: string
           is_active: boolean
           max_views: number
+          otp_code_hash: string | null
+          otp_expires_at: string | null
           owner_id: string
           remaining_views: number
           title: string
@@ -93,11 +98,16 @@ export type Database = {
           encrypted_content: string
           encryption_key_hash: string
           expire_at: string
+          face_attempts?: number
+          face_descriptor?: Json | null
+          face_verification_enabled?: boolean
           file_url?: string | null
           geo_restrictions?: Json | null
           id?: string
           is_active?: boolean
           max_views?: number
+          otp_code_hash?: string | null
+          otp_expires_at?: string | null
           owner_id: string
           remaining_views: number
           title: string
@@ -107,11 +117,16 @@ export type Database = {
           encrypted_content?: string
           encryption_key_hash?: string
           expire_at?: string
+          face_attempts?: number
+          face_descriptor?: Json | null
+          face_verification_enabled?: boolean
           file_url?: string | null
           geo_restrictions?: Json | null
           id?: string
           is_active?: boolean
           max_views?: number
+          otp_code_hash?: string | null
+          otp_expires_at?: string | null
           owner_id?: string
           remaining_views?: number
           title?: string
