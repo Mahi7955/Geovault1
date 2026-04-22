@@ -4,61 +4,80 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Shield, Lock, AlertCircle, MapPin, CheckCircle, XCircle, FileImage } from "lucide-react";
+import { Shield, Lock, MapPin, CheckCircle, XCircle, FileImage, ScanFace } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FaceCapture } from "@/components/FaceCapture";
+
+type Step = "loading" | "location" | "face" | "granted" | "denied";
 
 const ViewSecret = () => {
   const { secretId } = useParams();
-  const [loading, setLoading] = useState(true);
+  const [step, setStep] = useState<Step>("loading");
   const [verifying, setVerifying] = useState(false);
   const [secretInfo, setSecretInfo] = useState<any>(null);
   const [decryptedContent, setDecryptedContent] = useState("");
-  const [accessGranted, setAccessGranted] = useState(false);
-  const [accessDenied, setAccessDenied] = useState(false);
   const [denialMessage, setDenialMessage] = useState("");
   const [distance, setDistance] = useState<number | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [fileType, setFileType] = useState<string | null>(null);
+  const [attemptsRemaining, setAttemptsRemaining] = useState(3);
+  const [faceRequired, setFaceRequired] = useState(false);
 
   useEffect(() => {
     checkAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [secretId]);
 
   const checkAccess = async () => {
     try {
-      // Check if secret exists and is active
       const { data: secret, error: secretError } = await supabase
         .from("secrets")
-        .select("id, title, is_active, expire_at, remaining_views")
+        .select("id, title, is_active, expire_at, remaining_views, face_verification_enabled")
         .eq("id", secretId)
         .maybeSingle();
 
       if (secretError || !secret) {
         toast.error("Secret not found");
-        setLoading(false);
+        setStep("denied");
+        setDenialMessage("Secret not found.");
         return;
       }
 
       if (!secret.is_active || secret.remaining_views <= 0) {
-        toast.error("This secret is no longer available - view limit reached");
-        setAccessDenied(true);
+        setStep("denied");
         setDenialMessage("This secret has reached its maximum number of views and is no longer available.");
-        setLoading(false);
         return;
       }
 
       setSecretInfo(secret);
-      setLoading(false);
+      setFaceRequired(!!secret.face_verification_enabled);
+      setStep("location");
     } catch (error: any) {
       toast.error(error.message);
-      setLoading(false);
+      setStep("denied");
+      setDenialMessage(error.message);
     }
+  };
+
+  const handleSecretPayload = (encryptedContent: string, returnedFileUrl: string | null) => {
+    setDecryptedContent(atob(encryptedContent));
+    if (returnedFileUrl) {
+      const { data: { publicUrl } } = supabase.storage
+        .from("secret-files")
+        .getPublicUrl(returnedFileUrl);
+      setFileUrl(publicUrl);
+      const extension = returnedFileUrl.split(".").pop()?.toLowerCase();
+      if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension || "")) setFileType("image");
+      else if (["mp4", "webm"].includes(extension || "")) setFileType("video");
+      else if (["mp3", "wav", "ogg"].includes(extension || "")) setFileType("audio");
+      else if (extension === "pdf") setFileType("pdf");
+    }
+    setStep("granted");
   };
 
   const verifyLocation = async () => {
     setVerifying(true);
     try {
-      // Get user's current location
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         if (!navigator.geolocation) {
           reject(new Error("Geolocation is not supported by your browser"));
@@ -67,57 +86,42 @@ const ViewSecret = () => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 0
+          maximumAge: 0,
         });
       });
 
       const { latitude, longitude } = position.coords;
 
-      // Call edge function to verify location
-      const { data, error } = await supabase.functions.invoke('verify-location', {
-        body: {
-          secretId,
-          viewerLat: latitude,
-          viewerLng: longitude
-        }
+      const { data, error } = await supabase.functions.invoke("verify-location", {
+        body: { secretId, viewerLat: latitude, viewerLng: longitude },
       });
 
       if (error) {
-        console.error('Edge function error:', error);
         toast.error("Failed to verify location");
         return;
       }
 
-      if (data.allowed) {
-        setAccessGranted(true);
-        setDistance(data.distance);
-        setDecryptedContent(atob(data.encryptedContent));
-        
-        // Get file URL if exists
-        if (data.fileUrl) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('secret-files')
-            .getPublicUrl(data.fileUrl);
-          setFileUrl(publicUrl);
-          
-          // Determine file type from extension
-          const extension = data.fileUrl.split('.').pop()?.toLowerCase();
-          if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
-            setFileType('image');
-          } else if (['mp4', 'webm'].includes(extension || '')) {
-            setFileType('video');
-          } else if (['mp3', 'wav', 'ogg'].includes(extension || '')) {
-            setFileType('audio');
-          } else if (extension === 'pdf') {
-            setFileType('pdf');
-          }
-        }
-        
-        toast.success(`Access granted! You are ${data.distance}m away.`);
-      } else {
-        setAccessDenied(true);
+      if (!data.allowed) {
+        setStep("denied");
         setDenialMessage(data.message);
         setDistance(data.distance);
+        return;
+      }
+
+      setDistance(data.distance);
+
+      if (faceRequired) {
+        // Location decremented views & returned content, but we need face too.
+        // The current verify-location ALSO decrements views and returns content.
+        // To avoid double-decrement, we proceed to face step using the returned content
+        // only after face matches (we keep payload in memory, do not show yet).
+        toast.success(`Location verified (${data.distance}m). Now verify your face.`);
+        // Stash payload for after face match.
+        setPendingPayload({ encryptedContent: data.encryptedContent, fileUrl: data.fileUrl });
+        setStep("face");
+      } else {
+        handleSecretPayload(data.encryptedContent, data.fileUrl);
+        toast.success(`Access granted! You are ${data.distance}m away.`);
       }
     } catch (error: any) {
       if (error.code === 1) {
@@ -130,8 +134,42 @@ const ViewSecret = () => {
     }
   };
 
+  const [pendingPayload, setPendingPayload] = useState<{ encryptedContent: string; fileUrl: string | null } | null>(null);
 
-  if (loading) {
+  const handleFaceCapture = async (descriptor: number[]) => {
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("verify-face", {
+        body: { secretId, descriptor },
+      });
+      if (error) {
+        toast.error("Face verification failed");
+        return;
+      }
+      if (data.allowed) {
+        const payload = pendingPayload || {
+          encryptedContent: data.encryptedContent,
+          fileUrl: data.fileUrl,
+        };
+        handleSecretPayload(payload.encryptedContent, payload.fileUrl);
+        toast.success("Face verified! Access granted.");
+      } else {
+        setAttemptsRemaining(data.attemptsRemaining ?? 0);
+        if (data.locked) {
+          setStep("denied");
+          setDenialMessage(data.message);
+        } else {
+          toast.error(data.message);
+        }
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  if (step === "loading") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 flex items-center justify-center">
         <div className="text-center">
@@ -165,34 +203,56 @@ const ViewSecret = () => {
               {secretInfo?.title}
             </CardTitle>
             <CardDescription>
-              Ready to view this secret
+              {step === "location" && "Step 1: Verify your location"}
+              {step === "face" && "Step 2: Verify your face"}
+              {step === "granted" && "Access granted"}
+              {step === "denied" && "Access denied"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {!accessGranted && !accessDenied && (
+            {step === "location" && (
               <>
                 <Alert>
                   <MapPin className="h-4 w-4" />
                   <AlertDescription>
-                    Location verification is required to access this secret. You must be within 100 meters of the designated location.
+                    You must be within 100 meters of the designated location.
+                    {faceRequired && " Face verification will be required next."}
                   </AlertDescription>
                 </Alert>
-                <Button 
+                <Button
                   onClick={verifyLocation}
                   disabled={verifying}
                   className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
                 >
-                  {verifying ? "Verifying Location..." : "Verify Location & View Secret"}
+                  {verifying ? "Verifying Location..." : "Verify Location"}
                 </Button>
               </>
             )}
 
-            {accessGranted && (
+            {step === "face" && (
+              <>
+                <Alert>
+                  <ScanFace className="h-4 w-4" />
+                  <AlertDescription>
+                    Look at the camera. Only the registered face can unlock this secret.
+                    {" "}
+                    <span className="font-medium">{attemptsRemaining} attempt{attemptsRemaining === 1 ? "" : "s"} remaining.</span>
+                  </AlertDescription>
+                </Alert>
+                <FaceCapture
+                  onCapture={handleFaceCapture}
+                  captureLabel="Verify My Face"
+                  capturedLabel="Verifying..."
+                />
+              </>
+            )}
+
+            {step === "granted" && (
               <div className="space-y-4">
                 <Alert className="border-green-500/50 bg-green-500/10">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <AlertDescription className="text-green-500">
-                    Access Granted! You are {distance}m from the allowed location.
+                    Access Granted!{distance !== null && ` You are ${distance}m from the allowed location.`}
                   </AlertDescription>
                 </Alert>
                 <div className="space-y-2">
@@ -201,7 +261,7 @@ const ViewSecret = () => {
                     <p className="text-sm whitespace-pre-wrap">{decryptedContent}</p>
                   </div>
                 </div>
-                
+
                 {fileUrl && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -209,35 +269,17 @@ const ViewSecret = () => {
                       Attached Media:
                     </p>
                     <div className="p-4 bg-secondary/50 border border-border rounded-lg">
-                      {fileType === 'image' && (
-                        <img 
-                          src={fileUrl} 
-                          alt="Secret attachment" 
-                          className="w-full rounded-lg max-h-96 object-contain"
-                        />
+                      {fileType === "image" && (
+                        <img src={fileUrl} alt="Secret attachment" className="w-full rounded-lg max-h-96 object-contain" />
                       )}
-                      {fileType === 'video' && (
-                        <video 
-                          src={fileUrl} 
-                          controls 
-                          className="w-full rounded-lg max-h-96"
-                        />
+                      {fileType === "video" && (
+                        <video src={fileUrl} controls className="w-full rounded-lg max-h-96" />
                       )}
-                      {fileType === 'audio' && (
-                        <audio 
-                          src={fileUrl} 
-                          controls 
-                          className="w-full"
-                        />
-                      )}
-                      {fileType === 'pdf' && (
+                      {fileType === "audio" && <audio src={fileUrl} controls className="w-full" />}
+                      {fileType === "pdf" && (
                         <div className="text-center">
                           <p className="text-sm text-muted-foreground mb-2">PDF Document</p>
-                          <Button
-                            onClick={() => window.open(fileUrl, '_blank')}
-                            variant="outline"
-                            className="w-full"
-                          >
+                          <Button onClick={() => window.open(fileUrl, "_blank")} variant="outline" className="w-full">
                             Open PDF
                           </Button>
                         </div>
@@ -248,7 +290,7 @@ const ViewSecret = () => {
               </div>
             )}
 
-            {accessDenied && (
+            {step === "denied" && (
               <Alert className="border-red-500/50 bg-red-500/10">
                 <XCircle className="h-4 w-4 text-red-500" />
                 <AlertDescription className="text-red-500">
