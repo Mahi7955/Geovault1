@@ -136,6 +136,11 @@ const CreateSecret = () => {
       return;
     }
 
+    if (faceEnabled && !faceDescriptor) {
+      toast.error("Please capture the receiver's face");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -177,7 +182,9 @@ const CreateSecret = () => {
           remaining_views: formData.maxViews,
           expire_at: expireAt.toISOString(),
           geo_restrictions: { latitude: restrictedLat, longitude: restrictedLng },
-          file_url: fileUrl
+          file_url: fileUrl,
+          face_verification_enabled: faceEnabled,
+          face_descriptor: faceEnabled && faceDescriptor ? (faceDescriptor as any) : null,
         })
         .select()
         .single();
