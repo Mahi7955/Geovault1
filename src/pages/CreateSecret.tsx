@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Shield, ArrowLeft, Lock, Copy, Check, Upload, X, FileImage, FileVideo, FileAudio } from "lucide-react";
+import { Shield, ArrowLeft, Lock, Copy, Check, Upload, X, FileImage, FileVideo, FileAudio, ScanFace } from "lucide-react";
 import { PasswordStrength } from "@/components/PasswordStrength";
+import { Switch } from "@/components/ui/switch";
+import { FaceCapture } from "@/components/FaceCapture";
 
 const CreateSecret = () => {
   const navigate = useNavigate();
@@ -26,6 +28,8 @@ const CreateSecret = () => {
   const [fetchingLocation, setFetchingLocation] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [faceEnabled, setFaceEnabled] = useState(false);
+  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
