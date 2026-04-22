@@ -490,6 +490,7 @@ const CreateSecret = () => {
                   <div className="pt-2">
                     <FaceCapture
                       onCapture={(d) => setFaceDescriptor(d)}
+                      allowUpload
                       captureLabel="Capture Receiver's Face"
                       capturedLabel="Face registered"
                     />
