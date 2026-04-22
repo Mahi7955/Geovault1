@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.verify-face]
 verify_jwt = false
+
+[functions.get-secret-info]
+verify_jwt = false

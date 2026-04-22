@@ -30,27 +30,28 @@ const ViewSecret = () => {
 
   const checkAccess = async () => {
     try {
-      const { data: secret, error: secretError } = await supabase
-        .from("secrets")
-        .select("id, title, is_active, expire_at, remaining_views, face_verification_enabled")
-        .eq("id", secretId)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke("get-secret-info", {
+        body: { secretId },
+      });
 
-      if (secretError || !secret) {
-        toast.error("Secret not found");
+      if (error || !data || !data.found) {
         setStep("denied");
         setDenialMessage("Secret not found.");
         return;
       }
 
-      if (!secret.is_active || secret.remaining_views <= 0) {
+      if (!data.available) {
         setStep("denied");
-        setDenialMessage("This secret has reached its maximum number of views and is no longer available.");
+        setDenialMessage(
+          data.expired
+            ? "This secret has expired."
+            : "This secret has reached its maximum number of views and is no longer available."
+        );
         return;
       }
 
-      setSecretInfo(secret);
-      setFaceRequired(!!secret.face_verification_enabled);
+      setSecretInfo({ id: data.id, title: data.title });
+      setFaceRequired(!!data.face_verification_enabled);
       setStep("location");
     } catch (error: any) {
       toast.error(error.message);
