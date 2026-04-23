@@ -67,10 +67,10 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get secret's allowed location
+    // Get secret's allowed location and whether another verification step is required.
     const { data: secret, error: secretError } = await supabase
       .from('secrets')
-      .select('geo_restrictions, encrypted_content, remaining_views, file_url')
+      .select('geo_restrictions, encrypted_content, remaining_views, file_url, face_verification_enabled')
       .eq('id', secretId)
       .eq('is_active', true)
       .maybeSingle();
@@ -90,7 +90,6 @@ serve(async (req) => {
       );
     }
 
-    // Calculate distance
     const distance = calculateDistance(
       geoRestrictions.latitude,
       geoRestrictions.longitude,
@@ -100,11 +99,9 @@ serve(async (req) => {
 
     console.log(`Distance: ${distance.toFixed(2)}m`);
 
-    // Check if within 100 meters
     if (distance > 100) {
-      // Get viewer's address for better error message
       const viewerAddress = await geocodeLocation(viewerLat, viewerLng, GOOGLE_MAPS_API_KEY);
-      
+
       return new Response(
         JSON.stringify({
           allowed: false,
@@ -116,15 +113,29 @@ serve(async (req) => {
       );
     }
 
-    // Within range - get viewer's full address
     const viewerAddress = await geocodeLocation(viewerLat, viewerLng, GOOGLE_MAPS_API_KEY);
+    const faceRequired = !!secret.face_verification_enabled;
 
-    // Decrement remaining views
+    // Important: if face verification is required, do not consume a view yet.
+    // The view should only be decremented after face verification succeeds.
+    if (faceRequired) {
+      return new Response(
+        JSON.stringify({
+          allowed: true,
+          distance: Math.round(distance),
+          viewerLocation: viewerAddress,
+          faceRequired: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const newRemainingViews = secret.remaining_views - 1;
     const { error: updateError } = await supabase
       .from('secrets')
-      .update({ 
-        remaining_views: secret.remaining_views - 1,
-        is_active: secret.remaining_views - 1 > 0
+      .update({
+        remaining_views: newRemainingViews,
+        is_active: newRemainingViews > 0,
       })
       .eq('id', secretId);
 
@@ -138,7 +149,8 @@ serve(async (req) => {
         distance: Math.round(distance),
         encryptedContent: secret.encrypted_content,
         fileUrl: secret.file_url,
-        viewerLocation: viewerAddress
+        viewerLocation: viewerAddress,
+        faceRequired: false,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

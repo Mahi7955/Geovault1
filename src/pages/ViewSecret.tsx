@@ -112,13 +112,12 @@ const ViewSecret = () => {
       setDistance(data.distance);
 
       if (faceRequired) {
-        // Location decremented views & returned content, but we need face too.
-        // The current verify-location ALSO decrements views and returns content.
-        // To avoid double-decrement, we proceed to face step using the returned content
-        // only after face matches (we keep payload in memory, do not show yet).
         toast.success(`Location verified (${data.distance}m). Now verify your face.`);
-        // Stash payload for after face match.
-        setPendingPayload({ encryptedContent: data.encryptedContent, fileUrl: data.fileUrl });
+        setPendingPayload(
+          data.encryptedContent
+            ? { encryptedContent: data.encryptedContent, fileUrl: data.fileUrl }
+            : null
+        );
         setStep("face");
       } else {
         handleSecretPayload(data.encryptedContent, data.fileUrl);
