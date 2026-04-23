@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const MAX_ATTEMPTS = 3;
-const MATCH_THRESHOLD = 0.5;
+const MATCH_THRESHOLD = 0.6;
 
 function euclideanDistance(a: number[], b: number[]): number {
   if (a.length !== b.length) return Infinity;

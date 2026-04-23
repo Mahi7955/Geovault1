@@ -106,8 +106,13 @@ export const FaceCapture = ({
   }, [ready, autoCapture, mode]);
 
   const extractDescriptor = async (input: HTMLVideoElement | HTMLImageElement) => {
+    // Larger inputSize improves accuracy, especially for uploaded photos.
+    const options = new faceapi.TinyFaceDetectorOptions({
+      inputSize: 416,
+      scoreThreshold: 0.5,
+    });
     const detection = await faceapi
-      .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions())
+      .detectSingleFace(input, options)
       .withFaceLandmarks()
       .withFaceDescriptor();
     return detection;
