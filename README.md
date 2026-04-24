@@ -1,73 +1,77 @@
-# Welcome to your Lovable project
+Geovault
 
-## Project info
+Secure. Smart. Controlled Access to Sensitive Data
 
-**URL**: https://lovable.dev/projects/70d2fd7c-58c5-420a-8f73-e741f8a00ecd
+Whisper Lockbox is an advanced encryption-based document security system that ensures only authorized users can access confidential files. It combines location validation, time restrictions, usage limits, and face recognition to provide multi-layered protection.
 
-## How can I edit this code?
+🚀 Features
+📍 Location-Based Access
+Restrict file access using exact latitude & longitude.
+⏰ Time Slot Control
+Allow access only during specific time windows.
+🔢 Usage Limitation
+Limit how many times a document can be opened.
+👤 Face Recognition Security
+Ensure only the intended person can unlock the file.
+🔐 End-to-End Encryption
+Protect sensitive data from unauthorized access.
+🧠 Use Cases
+Secure sharing of confidential documents
+Exam paper protection systems
+Corporate file access control
+Legal & government document security
 
-There are several ways of editing your application.
+🛠️ Tech Stack
+⚡ Vite – Fast frontend tooling
+🟦 TypeScript – Type-safe development
+⚛️ React – UI development
+🎨 Tailwind CSS – Modern styling
+🧩 shadcn-ui – Reusable UI components
+📦 Installation & Setup
 
-**Use Lovable**
+Make sure you have Node.js and npm installed.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/70d2fd7c-58c5-420a-8f73-e741f8a00ecd) and start prompting.
+# Clone the repository
+git clone https://github.com/Mahi7955/whisper-lockbox.git
 
-Changes made via Lovable will be committed automatically to this repo.
+# Navigate to project folder
+cd whisper-lockbox
 
-**Use your preferred IDE**
+# Install dependencies
+npm install
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Run the development server
 npm run dev
-```
+🧪 How It Works
+Upload a document
+Apply security layers:
+Set location constraints
+Define time slot
+Set usage count
+Register authorized face
+Share securely
+Access is granted only if all conditions are satisfied
+📸 Screenshots (Optional)
 
-**Edit a file directly in GitHub**
+Add screenshots or demo images here
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+🌐 Deployment
 
-**Use GitHub Codespaces**
+You can deploy this project using platforms like:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Vercel
+Netlify
+GitHub Pages (for frontend)
+🤝 Contributing
 
-## What technologies are used for this project?
+Contributions are welcome!
 
-This project is built with:
+# Fork the repo
+# Create a new branch
+git checkout -b feature-name
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Commit changes
+git commit -m "Added new feature"
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/70d2fd7c-58c5-420a-8f73-e741f8a00ecd) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# Push to branch
+git push origin feature-name
